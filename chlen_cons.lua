@@ -1,11 +1,11 @@
--- CHLEN-2.0 | STEAL EGG ULTIMATE (SVG + AURA)
+-- CHLEN-2.0 | STEAL EGG ULTIMATE (AURA PVP + SVG)
 local player = game.Players.LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
 local runService = game:GetService("RunService")
 local uis = game:GetService("UserInputService")
 local replicated = game:GetService("ReplicatedStorage")
 
--- === БАЗА ДАННЫХ ПИТОМЦЕВ ===
+-- === БАЗА ДАННЫХ ПИТОМЦЕВ (106 шт) ===
 local petDB = {
     Forest = {
         {name="Chicken", rarity="Common", value=1},
@@ -129,34 +129,7 @@ local autoSteal = false
 local auraActive = false
 local minimized = false
 
--- === SVG-СТИЛЬ (через теги) ===
-local svgStyle = [=[
-    * { font-family: 'Segoe UI', system-ui, sans-serif; }
-    .window { background: rgba(10,10,20,0.85); border-radius: 16px; border: 1px solid rgba(255,200,50,0.3); box-shadow: 0 8px 32px rgba(0,0,0,0.8); }
-    .header { background: linear-gradient(135deg, rgba(255,200,50,0.2), rgba(255,100,50,0.1)); border-radius: 16px 16px 0 0; padding: 8px 16px; }
-    .title { color: #ffcc44; font-weight: 700; font-size: 18px; text-shadow: 0 0 20px rgba(255,200,50,0.3); }
-    .btn { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; padding: 6px 12px; font-size: 13px; transition: all 0.2s; }
-    .btn:hover { background: rgba(255,200,50,0.15); border-color: rgba(255,200,50,0.3); }
-    .btn-primary { background: rgba(255,200,50,0.2); border-color: #ffcc44; color: #ffcc44; }
-    .btn-primary:hover { background: rgba(255,200,50,0.35); }
-    .btn-danger { background: rgba(255,50,50,0.2); border-color: #ff4444; color: #ff4444; }
-    .btn-danger:hover { background: rgba(255,50,50,0.35); }
-    .btn-success { background: rgba(50,255,50,0.2); border-color: #44ff44; color: #44ff44; }
-    .btn-success:hover { background: rgba(50,255,50,0.35); }
-    .pet-card { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 4px 10px; margin: 2px 0; border-left: 3px solid #ffcc44; }
-    .rarity-Common { border-left-color: #aaaaaa; }
-    .rarity-Uncommon { border-left-color: #55dd55; }
-    .rarity-Rare { border-left-color: #44aaff; }
-    .rarity-Epic { border-left-color: #aa44ff; }
-    .rarity-Legendary { border-left-color: #ff8800; }
-    .rarity-Mythic { border-left-color: #ff2266; }
-    .rarity-Cosmic { border-left-color: #ff66ff; }
-    .rarity-Secret { border-left-color: #ff0044; }
-    .rarity-Eternal { border-left-color: #ffdd00; }
-    .rarity-Divine { border-left-color: #ffffff; box-shadow: 0 0 20px rgba(255,255,255,0.2); }
-]=]
-
--- === СОЗДАНИЕ GUI ===
+-- === GUI ===
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "CHLEN_GUI"
 screenGui.Parent = player.PlayerGui
@@ -169,18 +142,18 @@ bg.Image = "rbxassetid://1234567890"  -- ЗАМЕНИ НА ID ТВОЕЙ PNG
 bg.ImageTransparency = 0.6
 bg.Parent = screenGui
 
--- === МАЛЕНЬКИЙ ЗНАЧОК (всегда сверху) ===
+-- === МАЛЕНЬКИЙ ЗНАЧОК ===
 local iconBtn = Instance.new("ImageButton")
 iconBtn.Size = UDim2.new(0, 48, 0, 48)
 iconBtn.Position = UDim2.new(0.01, 0, 0.01, 0)
 iconBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
 iconBtn.BackgroundTransparency = 0.15
 iconBtn.BorderSizePixel = 0
-iconBtn.Image = "rbxassetid://6031091071" -- звёздочка
+iconBtn.Image = "rbxassetid://6031091071"
 iconBtn.ImageColor3 = Color3.fromRGB(255, 200, 50)
 iconBtn.Parent = screenGui
 
--- Главное окно (скрыто по умолчанию)
+-- Главное окно
 local main = Instance.new("Frame")
 main.Size = UDim2.new(0, 480, 0, 560)
 main.Position = UDim2.new(0.5, -240, 0.2, 0)
@@ -249,7 +222,6 @@ local function addLabel(text, color, size)
     return lbl
 end
 
--- Дропдаун
 function Dropdown(parent, text, items, default, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.9, 0, 0, 32)
@@ -292,7 +264,7 @@ function Dropdown(parent, text, items, default, callback)
 end
 
 Dropdown(content, "Rarity", {"Common","Uncommon","Rare","Epic","Legendary","Mythic","Cosmic","Secret","Eternal","Divine"}, "Divine", function(v) selectedRarity = v end)
-Dropdown(content, "Location", locationsList, "All", function(v) selectedLocation = v end)
+Dropdown(content, "Location", locationsList, "All", function(v) selectedLocation = v; updatePetList() end)
 
 -- Кнопки
 local stealBtn = Instance.new("TextButton")
@@ -311,7 +283,7 @@ auraBtn.Size = UDim2.new(0.42, 0, 0, 38)
 auraBtn.Position = UDim2.new(0.53, 0, 0, y)
 auraBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 255)
 auraBtn.BackgroundTransparency = 0.2
-auraBtn.Text = "🌀 AURA (BAT)"
+auraBtn.Text = "🌀 AURA (PVP)"
 auraBtn.TextColor3 = Color3.new(1,1,1)
 auraBtn.Font = Enum.Font.GothamBold
 auraBtn.TextSize = 16
@@ -331,8 +303,8 @@ bestLabel.TextSize = 16
 bestLabel.Parent = content
 y = y + 38
 
--- Список питомцев (краткий)
-addLabel("📋 PETS IN CURRENT ZONE:", Color3.fromRGB(200, 200, 255), 15)
+-- Список питомцев
+addLabel("📋 PETS IN ZONE:", Color3.fromRGB(200, 200, 255), 15)
 
 local petListFrame = Instance.new("Frame")
 petListFrame.Size = UDim2.new(0.9, 0, 0, 200)
@@ -345,20 +317,20 @@ y = y + 210
 local function getPetInfo(egg)
     for loc, pets in pairs(petDB) do
         for _, p in pairs(pets) do
-            if egg.Name:find(p.name) or p.name:find(egg.Name) then
-                return p
+            if egg.Name:lower():find(string.lower(p.name)) or string.lower(p.name):find(string.lower(egg.Name)) then
+                return p, loc
             end
         end
     end
-    return {name="Unknown", rarity="Common", value=0}
+    return {name="Unknown", rarity="Common", value=0}, "Unknown"
 end
 
 local function getAllEggs()
     local list = {}
     for _, v in pairs(workspace:GetDescendants()) do
         if v:IsA("BasePart") and string.lower(v.Name):find("egg") then
-            local info = getPetInfo(v)
-            table.insert(list, {part=v, pet=info.name, rarity=info.rarity, value=info.value})
+            local info, loc = getPetInfo(v)
+            table.insert(list, {part=v, pet=info.name, rarity=info.rarity, value=info.value, location=loc})
         end
     end
     return list
@@ -370,7 +342,7 @@ local function getBestEgg()
     local bestRank = -1
     for _, e in pairs(eggs) do
         local rank = rarityOrder[e.rarity] or 0
-        if rank > bestRank and (selectedLocation == "All" or selectedLocation == e.location) then
+        if rank > bestRank and (selectedLocation == "All" or e.location == selectedLocation) then
             bestRank = rank
             best = e
         end
@@ -378,22 +350,81 @@ local function getBestEgg()
     return best
 end
 
--- === АУРА С БИТОЙ ===
+local function updatePetList()
+    for _, c in pairs(petListFrame:GetChildren()) do c:Destroy() end
+    local loc = selectedLocation == "All" and "Forest" or selectedLocation
+    local pets = petDB[loc] or petDB.Forest
+    local yOff = 0
+    for _, p in pairs(pets) do
+        if rarityOrder[p.rarity] >= rarityOrder[selectedRarity] then
+            local lbl = Instance.new("TextLabel")
+            lbl.Size = UDim2.new(1, 0, 0, 22)
+            lbl.Position = UDim2.new(0, 0, 0, yOff)
+            lbl.BackgroundTransparency = 1
+            lbl.Text = p.name .. " [" .. p.rarity .. "] $" .. p.value .. "/s"
+            local colors = {Common=Color3.new(0.7,0.7,0.7), Uncommon=Color3.new(0.3,0.9,0.3), Rare=Color3.new(0.3,0.6,1), Epic=Color3.new(0.7,0.3,1), Legendary=Color3.new(1,0.5,0), Mythic=Color3.new(1,0.2,0.4), Cosmic=Color3.new(1,0.4,1), Secret=Color3.new(1,0,0.3), Eternal=Color3.new(1,0.9,0), Divine=Color3.new(1,1,1)}
+            lbl.TextColor3 = colors[p.rarity] or Color3.new(1,1,1)
+            lbl.Font = Enum.Font.Gotham
+            lbl.TextSize = 12
+            lbl.TextXAlignment = Enum.TextXAlignment.Left
+            lbl.Parent = petListFrame
+            yOff = yOff + 24
+        end
+    end
+    petListFrame.Size = UDim2.new(0.9, 0, 0, yOff)
+end
+
+-- === АУРА ДЛЯ ПВП (БЬЁТ ИГРОКОВ) ===
 local auraParts = {}
 local function createAura()
     if #auraParts > 0 then return end
-    for i = 1, 12 do
-        local angle = (i / 12) * math.pi * 2
+    for i = 1, 16 do
+        local angle = (i / 16) * math.pi * 2
         local part = Instance.new("Part")
-        part.Size = Vector3.new(0.5, 0.5, 1.5)
-        part.BrickColor = BrickColor.new("Bright orange")
+        part.Size = Vector3.new(0.6, 0.6, 1.8)
+        part.BrickColor = BrickColor.new("Bright red")
         part.Material = Enum.Material.Neon
         part.Anchored = true
         part.CanCollide = false
-        part.Transparency = 0.3
+        part.Transparency = 0.2
         part.Parent = workspace
         table.insert(auraParts, part)
     end
+end
+
+local function getNearestPlayer()
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+    local nearest = nil
+    local minDist = 12
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (plr.Character.HumanoidRootPart.Position - root.Position).Magnitude
+            if dist < minDist then
+                minDist = dist
+                nearest = plr.Character
+            end
+        end
+    end
+    return nearest
+end
+
+local function hitPlayer(target)
+    if not target or not target:FindFirstChild("Humanoid") then return end
+    local humanoid = target.Humanoid
+    humanoid.Health = humanoid.Health - 20
+    
+    -- Эффект удара
+    local part = Instance.new("Part")
+    part.Size = Vector3.new(2, 2, 2)
+    part.BrickColor = BrickColor.new("Bright red")
+    part.Material = Enum.Material.Neon
+    part.Anchored = true
+    part.CanCollide = false
+    part.Transparency = 0.5
+    part.Position = target.HumanoidRootPart.Position
+    part.Parent = workspace
+    game:GetService("Debris"):AddItem(part, 0.3)
 end
 
 local function updateAura()
@@ -406,27 +437,26 @@ local function updateAura()
     local root = char:FindFirstChild("HumanoidRootPart")
     if not root then return end
     local time = tick()
+    
+    -- Вращение ауры
     for i, p in pairs(auraParts) do
-        local angle = (i / #auraParts) * math.pi * 2 + time * 2
-        local radius = 6 + math.sin(time * 1.5 + i) * 0.5
-        p.CFrame = root.CFrame * CFrame.new(math.sin(angle) * radius, 1.5 + math.sin(time * 2 + i) * 0.5, math.cos(angle) * radius)
-        p.Orientation = Vector3.new(0, math.deg(angle), math.sin(time + i) * 20)
-        
-        -- Битьё ближайшего яйца
-        local nearest = nil
-        local dist = 10
-        for _, egg in pairs(getAllEggs()) do
-            local d = (egg.part.Position - root.Position).Magnitude
-            if d < dist then
-                dist = d
-                nearest = egg
-            end
-        end
-        if nearest and dist < 8 then
-            local remote = replicated:FindFirstChild("StealEgg") or replicated:FindFirstChild("EggSteal")
-            if remote then remote:FireServer(nearest.part) end
-            local click = nearest.part:FindFirstChild("ClickDetector")
-            if click then click:Click() end
+        local angle = (i / #auraParts) * math.pi * 2 + time * 2.5
+        local radius = 5 + math.sin(time * 1.2 + i) * 0.5
+        p.CFrame = root.CFrame * CFrame.new(math.sin(angle) * radius, 1.5 + math.sin(time * 1.8 + i) * 0.5, math.cos(angle) * radius)
+        p.Orientation = Vector3.new(0, math.deg(angle), math.sin(time + i) * 30)
+    end
+    
+    -- Бьём ближайшего игрока
+    local target = getNearestPlayer()
+    if target then
+        hitPlayer(target)
+        -- Визуальный эффект удара (вспышка)
+        for _, p in pairs(auraParts) do
+            p.BrickColor = BrickColor.new("Bright yellow")
+            p.Transparency = 0.1
+            wait(0.05)
+            p.BrickColor = BrickColor.new("Bright red")
+            p.Transparency = 0.2
         end
     end
 end
@@ -453,7 +483,7 @@ end)
 
 auraBtn.MouseButton1Click:Connect(function()
     auraActive = not auraActive
-    auraBtn.Text = auraActive and "🌀 AURA: ON" or "🌀 AURA (BAT)"
+    auraBtn.Text = auraActive and "🌀 AURA: ON" or "🌀 AURA (PVP)"
     auraBtn.BackgroundColor3 = auraActive and Color3.fromRGB(50, 255, 50) or Color3.fromRGB(50, 100, 255)
     if auraActive then
         spawn(function()
@@ -468,7 +498,7 @@ auraBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- === СВОРАЧИВАНИЕ В ИКОНКУ ===
+-- === СВОРАЧИВАНИЕ ===
 iconBtn.MouseButton1Click:Connect(function()
     main.Visible = not main.Visible
     iconBtn.Size = main.Visible and UDim2.new(0, 40, 0, 40) or UDim2.new(0, 48, 0, 48)
@@ -479,32 +509,5 @@ minBtn.MouseButton1Click:Connect(function()
     iconBtn.Size = UDim2.new(0, 48, 0, 48)
 end)
 
--- Обновление списка питомцев
-local function updatePetList()
-    for _, c in pairs(petListFrame:GetChildren()) do c:Destroy() end
-    local loc = selectedLocation == "All" and "Forest" or selectedLocation
-    local pets = petDB[loc] or petDB.Forest
-    local yOff = 0
-    for _, p in pairs(pets) do
-        if rarityOrder[p.rarity] >= rarityOrder[selectedRarity] then
-            local lbl = Instance.new("TextLabel")
-            lbl.Size = UDim2.new(1, 0, 0, 22)
-            lbl.Position = UDim2.new(0, 0, 0, yOff)
-            lbl.BackgroundTransparency = 1
-            lbl.Text = p.name .. " [" .. p.rarity .. "] $" .. p.value .. "/s"
-            local colors = {Common=Color3.new(0.7,0.7,0.7), Uncommon=Color3.new(0.3,0.9,0.3), Rare=Color3.new(0.3,0.6,1), Epic=Color3.new(0.7,0.3,1), Legendary=Color3.new(1,0.5,0), Mythic=Color3.new(1,0.2,0.4), Cosmic=Color3.new(1,0.4,1), Secret=Color3.new(1,0,0.3), Eternal=Color3.new(1,0.9,0), Divine=Color3.new(1,1,1)}
-            lbl.TextColor3 = colors[p.rarity] or Color3.new(1,1,1)
-            lbl.Font = Enum.Font.Gotham
-            lbl.TextSize = 12
-            lbl.TextXAlignment = Enum.TextXAlignment.Left
-            lbl.Parent = petListFrame
-            yOff = yOff + 24
-        end
-    end
-    petListFrame.Size = UDim2.new(0.9, 0, 0, yOff)
-end
-
 updatePetList()
-Dropdown(content, "Location", locationsList, "All", function(v) selectedLocation = v; updatePetList() end)
-
-print("CHLEN-2.0 | ULTIMATE LOADED with AURA + SVG")
+print("CHLEN-2.0 | ULTIMATE PVP AURA LOADED")
