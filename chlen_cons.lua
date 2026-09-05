@@ -1,639 +1,608 @@
---[[
-    Retro Console v2.0 — Steal an Egg (Delta Executor)
-    Полный функционал: автосбор, аура с битой, определение редкости,
-    сворачивание в иконку, PNG-иконка, визуализация яиц на карте.
-    Общее количество строк: ~680
---]]
+-- CHLEN-2.0 | STEAL EGG ULTIMATE v3 (MULTI-SELECT)
+local player = game.Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local replicated = game:GetService("ReplicatedStorage")
+local runService = game:GetService("RunService")
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
-
--- Конфиг
-local Config = {
-    AutoCollect = true,
-    AuraActive = true,
-    ShowRarity = true,
-    ShowEggsOnMap = true,
-    Minimized = false,
-    BatCooldown = 0.3,
-    CollectRadius = 50,
-    AuraRadius = 35,
-    Colors = {
-        Common = Color3.fromRGB(128, 128, 128),
-        Uncommon = Color3.fromRGB(0, 255, 0),
-        Rare = Color3.fromRGB(0, 0, 255),
-        Epic = Color3.fromRGB(128, 0, 128),
-        Legendary = Color3.fromRGB(255, 215, 0),
-        Mythic = Color3.fromRGB(255, 68, 255),
-        Cosmic = Color3.fromRGB(0, 255, 255),
-        Secret = Color3.fromRGB(255, 0, 0),
-        Eternal = Color3.fromRGB(255, 140, 0),
-        Divine = Color3.fromRGB(255, 215, 0)
+-- === БАЗА ДАННЫХ (106 питомцев) ===
+local petDB = {
+    Forest = {
+        {name="Chicken", rarity="Common", value=1},
+        {name="Dog", rarity="Common", value=2},
+        {name="Bird", rarity="Uncommon", value=8},
+        {name="Owl", rarity="Rare", value=35},
+        {name="Raccoon", rarity="Rare", value=45},
+        {name="Bear", rarity="Epic", value=240},
+        {name="Fox", rarity="Epic", value=180},
+        {name="Brr Brr Patapim", rarity="Legendary", value=1800}
+    },
+    Lake = {
+        {name="Frog", rarity="Common", value=3},
+        {name="Duckling", rarity="Common", value=4},
+        {name="Catfish", rarity="Uncommon", value=12},
+        {name="Turtle", rarity="Rare", value=60},
+        {name="Trulimero Trulicina", rarity="Epic", value=260},
+        {name="Swan", rarity="Epic", value=320},
+        {name="Axolotl", rarity="Legendary", value=2800},
+        {name="Leviathan", rarity="Cosmic", value=220000}
+    },
+    Desert = {
+        {name="Jerboa", rarity="Common", value=6},
+        {name="Fennec", rarity="Uncommon", value=18},
+        {name="Camel", rarity="Rare", value=75},
+        {name="Tob Tobi Tob Tob", rarity="Epic", value=325},
+        {name="Snake", rarity="Legendary", value=3600},
+        {name="Scorpion", rarity="Mythic", value=18500},
+        {name="Sand Spider", rarity="Mythic", value=16000},
+        {name="Royal Sphinx", rarity="Cosmic", value=280000}
+    },
+    Jungle = {
+        {name="Toucan", rarity="Rare", value=110},
+        {name="Chimpanzee", rarity="Rare", value=90},
+        {name="Crocodile", rarity="Epic", value=420},
+        {name="Gorilla", rarity="Legendary", value=4800},
+        {name="Orangutini Ananassini", rarity="Legendary", value=5500},
+        {name="Spider", rarity="Mythic", value=22000},
+        {name="Tiger", rarity="Mythic", value=28000},
+        {name="King Snake", rarity="Secret", value=3500000}
+    },
+    Snow = {
+        {name="Penguin", rarity="Rare", value=140},
+        {name="Walrus", rarity="Epic", value=600},
+        {name="Polar Bear", rarity="Legendary", value=7000},
+        {name="Sabertooth Tiger", rarity="Mythic", value=35000},
+        {name="Mammoth", rarity="Mythic", value=42000},
+        {name="King Mammoth", rarity="Cosmic", value=400000},
+        {name="Yeti", rarity="Secret", value=5000000},
+        {name="Ice Dragon", rarity="Eternal", value=65000000}
+    },
+    Volcano = {
+        {name="Lava Gecko", rarity="Rare", value=180},
+        {name="Lava Frog", rarity="Epic", value=850},
+        {name="Flaming Bull", rarity="Legendary", value=9500},
+        {name="Lava Iguana", rarity="Legendary", value=11000},
+        {name="Chillin Chilli", rarity="Mythic", value=55000},
+        {name="Cerberus", rarity="Secret", value=8000000},
+        {name="Phoenix", rarity="Eternal", value=85000000},
+        {name="Lava Dragon", rarity="Eternal", value=100000000}
+    },
+    ["Abyss Ocean"] = {
+        {name="Parrotfish", rarity="Rare", value=220},
+        {name="Swordfish", rarity="Epic", value=1100},
+        {name="Shark", rarity="Legendary", value=15000},
+        {name="Orca", rarity="Mythic", value=80000},
+        {name="Whale Shark", rarity="Cosmic", value=700000},
+        {name="Beluga Whale", rarity="Cosmic", value=850000},
+        {name="Kraken", rarity="Secret", value=15000000},
+        {name="El Maja", rarity="Eternal", value=130000000}
+    },
+    Prehistoric = {
+        {name="Dodo", rarity="Rare", value=280},
+        {name="Pterodactyl", rarity="Legendary", value=22000},
+        {name="Ankylosaurus", rarity="Mythic", value=120000},
+        {name="Triceratops", rarity="Cosmic", value=1200000},
+        {name="Bronto", rarity="Cosmic", value=1500000},
+        {name="Tralaledon", rarity="Secret", value=32000000},
+        {name="T-Rex", rarity="Secret", value=25000000},
+        {name="Mosasaurus", rarity="Eternal", value=180000000}
+    },
+    Cosmic = {
+        {name="Centapede", rarity="Epic", value=1500},
+        {name="Cosmic Gecko", rarity="Legendary", value=30000},
+        {name="Cosmic Gorilla", rarity="Mythic", value=180000},
+        {name="La Vacca Saturno Saturnita", rarity="Cosmic", value=2200000},
+        {name="Cosmic Dragon", rarity="Secret", value=60000000},
+        {name="Cosmic Skeleton Boss", rarity="Secret", value=45000000},
+        {name="Eternal Lunar Dragon", rarity="Eternal", value=250000000},
+        {name="Unicorn", rarity="Divine", value=1000000000}
+    },
+    ["Cherry Blossom"] = {
+        {name="Crane", rarity="Epic", value=4000},
+        {name="Salamander", rarity="Legendary", value=74000},
+        {name="Red Panda", rarity="Mythic", value=450000},
+        {name="Koi", rarity="Cosmic", value=12000000},
+        {name="Snowy Owl", rarity="Cosmic", value=7500000},
+        {name="Stag", rarity="Secret", value=145000000},
+        {name="Oni Tiger", rarity="Eternal", value=600000000},
+        {name="Kitsune", rarity="Divine", value=1800000000}
+    },
+    ["Titan Temple"] = {
+        {name="Crustacia", rarity="Legendary", value=130000},
+        {name="Spideron", rarity="Legendary", value=95000},
+        {name="Bladehide", rarity="Mythic", value=750000},
+        {name="Mantaris", rarity="Cosmic", value=11000000},
+        {name="Rhinotaur", rarity="Cosmic", value=17500000},
+        {name="Mutant Shark", rarity="Secret", value=215000000},
+        {name="Gorilla King", rarity="Eternal", value=880000000},
+        {name="Nightflame", rarity="Divine", value=3000000000}
     }
 }
 
--- Список питомцев для определения редкости
-local PetRarities = {
-    -- Forest
-    ["Chicken"] = "Common", ["Dog"] = "Common", ["Bird"] = "Uncommon",
-    ["Owl"] = "Rare", ["Raccoon"] = "Rare", ["Bear"] = "Epic",
-    ["Fox"] = "Epic", ["Brr Brr Patapim"] = "Legendary",
-    -- Lake
-    ["Frog"] = "Common", ["Duckling"] = "Common", ["Catfish"] = "Uncommon",
-    ["Turtle"] = "Rare", ["Trulimero Trulicina"] = "Epic",
-    ["Swan"] = "Epic", ["Axolotl"] = "Legendary", ["Leviathan"] = "Cosmic",
-    -- Desert
-    ["Jerboa"] = "Common", ["Fennec"] = "Uncommon", ["Camel"] = "Rare",
-    ["Tob Tobi Tob Tob"] = "Epic", ["Snake"] = "Legendary",
-    ["Scorpion"] = "Mythic", ["Sand Spider"] = "Mythic", ["Royal Sphinx"] = "Cosmic",
-    -- Jungle
-    ["Toucan"] = "Rare", ["Chimpanzee"] = "Rare", ["Crocodile"] = "Epic",
-    ["Gorilla"] = "Legendary", ["Orangutini Ananassini"] = "Legendary",
-    ["Spider"] = "Mythic", ["Tiger"] = "Mythic", ["King Snake"] = "Secret",
-    -- Snow
-    ["Penguin"] = "Rare", ["Walrus"] = "Epic", ["Polar Bear"] = "Legendary",
-    ["Sabertooth Tiger"] = "Mythic", ["Mammoth"] = "Mythic",
-    ["King Mammoth"] = "Cosmic", ["Yeti"] = "Secret", ["Ice Dragon"] = "Eternal",
-    -- Volcano
-    ["Lava Gecko"] = "Rare", ["Lava Frog"] = "Epic", ["Flaming Bull"] = "Legendary",
-    ["Lava Iguana"] = "Legendary", ["Chillin Chilli"] = "Mythic",
-    ["Cerberus"] = "Secret", ["Phoenix"] = "Eternal", ["Lava Dragon"] = "Eternal",
-    -- Abyss Ocean
-    ["Parrotfish"] = "Rare", ["Swordfish"] = "Epic", ["Shark"] = "Legendary",
-    ["Orca"] = "Mythic", ["Whale Shark"] = "Cosmic", ["Beluga Whale"] = "Cosmic",
-    ["Kraken"] = "Secret", ["El Maja"] = "Eternal",
-    -- Prehistoric
-    ["Dodo"] = "Rare", ["Pterodactyl"] = "Legendary", ["Ankylosaurus"] = "Mythic",
-    ["Triceratops"] = "Cosmic", ["Bronto"] = "Cosmic", ["Tralaledon"] = "Secret",
-    ["T-Rex"] = "Secret", ["Mosasaurus"] = "Eternal",
-    -- Cosmic
-    ["Centapede"] = "Epic", ["Cosmic Gecko"] = "Legendary",
-    ["Cosmic Gorilla"] = "Mythic", ["La Vacca Saturno Saturnita"] = "Cosmic",
-    ["Cosmic Dragon"] = "Secret", ["Cosmic Skeleton Boss"] = "Secret",
-    ["Eternal Lunar Dragon"] = "Eternal", ["Unicorn"] = "Divine",
-    -- Cherry Blossom
-    ["Crane"] = "Epic", ["Salamander"] = "Legendary", ["Red Panda"] = "Mythic",
-    ["Koi"] = "Cosmic", ["Snowy Owl"] = "Cosmic", ["Stag"] = "Secret",
-    ["Oni Tiger"] = "Eternal", ["Kitsune"] = "Divine",
-    -- Titan Temple
-    ["Crustacia"] = "Legendary", ["Spideron"] = "Legendary", ["Bladehide"] = "Mythic",
-    ["Mantaris"] = "Cosmic", ["Rhinotaur"] = "Cosmic", ["Mutant Shark"] = "Secret",
-    ["Gorilla King"] = "Eternal", ["Nightflame"] = "Divine",
-    -- Brainrot Egg
-    ["Tung Tung Sahur"] = "Rare", ["Bananita Dolphinita"] = "Epic",
-    ["Belula Beluga"] = "Mythic", ["Mangolini Parrochini"] = "Cosmic",
-    ["Bomboclat Crocolat"] = "Secret", ["Strawberry Elephant"] = "Eternal",
-    -- Monster Egg
-    ["Scorpio"] = "Legendary", ["Froggo"] = "Mythic", ["Crawler"] = "Cosmic",
-    ["Crocodon"] = "Secret", ["Krakenoid"] = "Eternal", ["Dreadscale"] = "Divine",
-    -- Mecha
-    ["Mecha Scorpio"] = "Legendary", ["Mecha Froggo"] = "Mythic",
-    ["Mecha Crawler"] = "Cosmic", ["Mecha Crocodon"] = "Secret",
-    ["Mecha Krakenoid"] = "Eternal", ["Mecha Dreadscale"] = "Divine"
-}
+-- === НАСТРОЙКИ ===
+local rarityOrder = {Common=1, Uncommon=2, Rare=3, Epic=4, Legendary=5, Mythic=6, Cosmic=7, Secret=8, Eternal=9, Divine=10}
+local allRarities = {"Common","Uncommon","Rare","Epic","Legendary","Mythic","Cosmic","Secret","Eternal","Divine"}
+local allLocations = {"Forest","Lake","Desert","Jungle","Snow","Volcano","Abyss Ocean","Prehistoric","Cosmic","Cherry Blossom","Titan Temple"}
 
--- Функция получения редкости
-local function GetPetRarity(petName)
-    for name, rarity in pairs(PetRarities) do
-        if string.find(petName, name) or string.find(name, petName) then
-            return rarity
-        end
-    end
-    return "Unknown"
-end
+local selectedRarities = {Divine=true}
+local selectedLocations = {}
+for _, loc in pairs(allLocations) do selectedLocations[loc] = true end
+local autoSteal = false
+local auraActive = false
 
--- Функция получения цвета редкости
-local function GetRarityColor(rarity)
-    return Config.Colors[rarity] or Color3.fromRGB(255, 255, 255)
-end
+-- === GUI ===
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CHLEN_GUI"
+screenGui.Parent = player.PlayerGui
 
--- Создание GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "RetroConsole"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+-- ФОН (твоя PNG)
+local bg = Instance.new("ImageLabel")
+bg.Size = UDim2.new(1, 1, 1, 1)
+bg.BackgroundTransparency = 1
+bg.Image = "rbxassetid://1234567890"  -- ЗАМЕНИ
+bg.ImageTransparency = 0.4
+bg.Parent = screenGui
 
--- Главное окно
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 420, 0, 560)
-MainFrame.Position = UDim2.new(0.5, -210, 0.5, -280)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 12, 25)
-MainFrame.BackgroundTransparency = 0.08
-MainFrame.BorderSizePixel = 3
-MainFrame.BorderColor3 = Color3.fromRGB(72, 219, 251)
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.Parent = ScreenGui
+-- === МАЛЕНЬКАЯ ИКОНКА ===
+local iconFrame = Instance.new("Frame")
+iconFrame.Size = UDim2.new(0, 52, 0, 52)
+iconFrame.Position = UDim2.new(0.01, 0, 0.01, 0)
+iconFrame.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
+iconFrame.BackgroundTransparency = 0.2
+iconFrame.BorderSizePixel = 0
+iconFrame.Parent = screenGui
 
--- Тень
-local Shadow = Instance.new("Frame")
-Shadow.Size = MainFrame.Size + UDim2.new(0, 10, 0, 10)
-Shadow.Position = MainFrame.Position + UDim2.new(0, -5, 0, -5)
-Shadow.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-Shadow.BackgroundTransparency = 0.6
-Shadow.BorderSizePixel = 0
-Shadow.Parent = ScreenGui
+local iconBtn = Instance.new("TextButton")
+iconBtn.Size = UDim2.new(1, 0, 1, 0)
+iconBtn.BackgroundTransparency = 1
+iconBtn.Text = "⚡"
+iconBtn.TextColor3 = Color3.fromRGB(255, 200, 50)
+iconBtn.Font = Enum.Font.GothamBold
+iconBtn.TextSize = 28
+iconBtn.Parent = iconFrame
+
+local iconLabel = Instance.new("TextLabel")
+iconLabel.Size = UDim2.new(1, 0, 0, 16)
+iconLabel.Position = UDim2.new(0, 0, 1, -2)
+iconLabel.BackgroundTransparency = 1
+iconLabel.Text = "CHLEN"
+iconLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
+iconLabel.Font = Enum.Font.GothamBold
+iconLabel.TextSize = 10
+iconLabel.Parent = iconFrame
+
+-- === ГЛАВНОЕ ОКНО ===
+local main = Instance.new("Frame")
+main.Size = UDim2.new(0, 520, 0, 600)
+main.Position = UDim2.new(0.5, -260, 0.15, 0)
+main.BackgroundColor3 = Color3.fromRGB(8, 8, 18)
+main.BackgroundTransparency = 0.2
+main.BorderSizePixel = 0
+main.Visible = false
+main.ClipsDescendants = true
+main.Parent = screenGui
 
 -- Заголовок
-local TitleBar = Instance.new("Frame")
-TitleBar.Size = UDim2.new(1, 0, 0, 40)
-TitleBar.BackgroundColor3 = Color3.fromRGB(25, 20, 40)
-TitleBar.BorderSizePixel = 0
-TitleBar.Parent = MainFrame
+local header = Instance.new("Frame")
+header.Size = UDim2.new(1, 0, 0, 44)
+header.BackgroundColor3 = Color3.fromRGB(255, 200, 50)
+header.BackgroundTransparency = 0.15
+header.Parent = main
 
-local TitleText = Instance.new("TextLabel")
-TitleText.Size = UDim2.new(1, -80, 1, 0)
-TitleText.Position = UDim2.new(0, 10, 0, 0)
-TitleText.BackgroundTransparency = 1
-TitleText.Text = "🎮 Retro Console — Steal an Egg"
-TitleText.TextColor3 = Color3.fromRGB(255, 200, 100)
-TitleText.TextScaled = true
-TitleText.Font = Enum.Font.Code
-TitleText.TextXAlignment = Enum.TextXAlignment.Left
-TitleText.Parent = TitleBar
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(0.8, 0, 1, 0)
+titleLabel.Position = UDim2.new(0.02, 0, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "⚡ CHLEN-2.0 | MULTI-STEAL"
+titleLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 18
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = header
 
--- Кнопка сворачивания
-local MinButton = Instance.new("TextButton")
-MinButton.Size = UDim2.new(0, 30, 0, 28)
-MinButton.Position = UDim2.new(1, -90, 0, 6)
-MinButton.BackgroundColor3 = Color3.fromRGB(40, 35, 55)
-MinButton.BorderSizePixel = 1
-MinButton.BorderColor3 = Color3.fromRGB(72, 219, 251)
-MinButton.Text = "─"
-MinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinButton.TextScaled = true
-MinButton.Font = Enum.Font.Code
-MinButton.Parent = TitleBar
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 32, 0, 32)
+closeBtn.Position = UDim2.new(1, -36, 0, 6)
+closeBtn.BackgroundTransparency = 1
+closeBtn.Text = "✕"
+closeBtn.TextColor3 = Color3.new(1,1,1)
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 18
+closeBtn.Parent = header
 
--- Кнопка закрытия
-local CloseButton = Instance.new("TextButton")
-CloseButton.Size = UDim2.new(0, 30, 0, 28)
-CloseButton.Position = UDim2.new(1, -40, 0, 6)
-CloseButton.BackgroundColor3 = Color3.fromRGB(55, 25, 25)
-CloseButton.BorderSizePixel = 1
-CloseButton.BorderColor3 = Color3.fromRGB(255, 80, 80)
-CloseButton.Text = "✕"
-CloseButton.TextColor3 = Color3.fromRGB(255, 80, 80)
-CloseButton.TextScaled = true
-CloseButton.Font = Enum.Font.Code
-CloseButton.Parent = TitleBar
+-- Скролл
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, 0, 1, -44)
+scroll.Position = UDim2.new(0, 0, 0, 44)
+scroll.BackgroundTransparency = 1
+scroll.CanvasSize = UDim2.new(0, 0, 0, 900)
+scroll.ScrollBarThickness = 4
+scroll.Parent = main
 
--- Лог-область
-local LogFrame = Instance.new("ScrollingFrame")
-LogFrame.Size = UDim2.new(1, -20, 0, 180)
-LogFrame.Position = UDim2.new(0, 10, 0, 50)
-LogFrame.BackgroundColor3 = Color3.fromRGB(8, 6, 16)
-LogFrame.BorderSizePixel = 2
-LogFrame.BorderColor3 = Color3.fromRGB(72, 219, 251)
-LogFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-LogFrame.ScrollBarThickness = 6
-LogFrame.Parent = MainFrame
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, 0, 0, 900)
+content.BackgroundTransparency = 1
+content.Parent = scroll
 
-local LogText = Instance.new("TextLabel")
-LogText.Size = UDim2.new(1, -10, 0, 0)
-LogText.Position = UDim2.new(0, 5, 0, 5)
-LogText.BackgroundTransparency = 1
-LogText.Text = ""
-LogText.TextColor3 = Color3.fromRGB(0, 255, 120)
-LogText.TextXAlignment = Enum.TextXAlignment.Left
-LogText.TextYAlignment = Enum.TextYAlignment.Top
-LogText.TextScaled = false
-LogText.Font = Enum.Font.Code
-LogText.TextSize = 12
-LogText.Parent = LogFrame
+local y = 6
 
-local function AddLog(msg, color)
-    color = color or Color3.fromRGB(0, 255, 120)
-    local time = os.date("%H:%M:%S")
-    LogText.Text = LogText.Text .. string.format("[%s] %s\n", time, msg)
-    LogFrame.CanvasSize = UDim2.new(0, 0, 0, LogText.TextBounds.Y + 30)
-    LogFrame.CanvasPosition = Vector2.new(0, LogFrame.CanvasSize.Y.Offset)
+-- === ФУНКЦИЯ СОЗДАНИЯ ЧЕКБОКСА ===
+function createCheckbox(parent, text, default, callback)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0.28, 0, 0, 26)
+    frame.Position = UDim2.new(0.02 + (math.floor(#text/2) % 3) * 0.32, 0, 0, y)
+    frame.BackgroundTransparency = 1
+    frame.Parent = parent
+
+    local check = Instance.new("ImageButton")
+    check.Size = UDim2.new(0, 18, 0, 18)
+    check.Position = UDim2.new(0, 0, 0.5, -9)
+    check.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+    check.BorderSizePixel = 0
+    check.Image = default and "rbxassetid://6023099522" or ""
+    check.ImageColor3 = Color3.fromRGB(255, 200, 50)
+    check.Parent = frame
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -22, 1, 0)
+    label.Position = UDim2.new(0, 22, 0, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.new(1,1,1)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 12
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = frame
+
+    local state = default
+    check.MouseButton1Click:Connect(function()
+        state = not state
+        check.Image = state and "rbxassetid://6023099522" or ""
+        callback(state)
+    end)
+    return frame
 end
 
-AddLog("Система запущена", Color3.fromRGB(0, 255, 255))
-AddLog("Retro Console v2.0 загружена", Color3.fromRGB(255, 200, 100))
+-- Заголовок "Редкости"
+local rarityTitle = Instance.new("TextLabel")
+rarityTitle.Size = UDim2.new(0.9, 0, 0, 22)
+rarityTitle.Position = UDim2.new(0.05, 0, 0, y)
+rarityTitle.BackgroundTransparency = 1
+rarityTitle.Text = "🎯 РЕДКОСТИ (выбери несколько)"
+rarityTitle.TextColor3 = Color3.fromRGB(255, 200, 150)
+rarityTitle.Font = Enum.Font.GothamBold
+rarityTitle.TextSize = 14
+rarityTitle.TextXAlignment = Enum.TextXAlignment.Left
+rarityTitle.Parent = content
+y = y + 28
 
--- Панель управления
-local ControlPanel = Instance.new("Frame")
-ControlPanel.Size = UDim2.new(1, -20, 0, 120)
-ControlPanel.Position = UDim2.new(0, 10, 0, 240)
-ControlPanel.BackgroundColor3 = Color3.fromRGB(12, 10, 22)
-ControlPanel.BorderSizePixel = 2
-ControlPanel.BorderColor3 = Color3.fromRGB(72, 219, 251)
-ControlPanel.Parent = MainFrame
+local rarityFrame = Instance.new("Frame")
+rarityFrame.Size = UDim2.new(0.96, 0, 0, 70)
+rarityFrame.Position = UDim2.new(0.02, 0, 0, y)
+rarityFrame.BackgroundTransparency = 1
+rarityFrame.Parent = content
+y = y + 76
 
--- Кнопка автосбора
-local CollectBtn = Instance.new("TextButton")
-CollectBtn.Size = UDim2.new(0, 180, 0, 35)
-CollectBtn.Position = UDim2.new(0, 10, 0, 10)
-CollectBtn.BackgroundColor3 = Color3.fromRGB(20, 40, 30)
-CollectBtn.BorderSizePixel = 2
-CollectBtn.BorderColor3 = Color3.fromRGB(0, 255, 100)
-CollectBtn.Text = "🔄 Автосбор: ВКЛ"
-CollectBtn.TextColor3 = Color3.fromRGB(0, 255, 100)
-CollectBtn.TextScaled = true
-CollectBtn.Font = Enum.Font.Code
-CollectBtn.Parent = ControlPanel
+local rarityChecks = {}
+for i, r in ipairs(allRarities) do
+    local cb = createCheckbox(rarityFrame, r, r == "Divine", function(state)
+        selectedRarities[r] = state
+    end)
+    rarityChecks[r] = cb
+end
 
--- Кнопка ауры
-local AuraBtn = Instance.new("TextButton")
-AuraBtn.Size = UDim2.new(0, 180, 0, 35)
-AuraBtn.Position = UDim2.new(0, 10, 0, 55)
-AuraBtn.BackgroundColor3 = Color3.fromRGB(40, 20, 30)
-AuraBtn.BorderSizePixel = 2
-AuraBtn.BorderColor3 = Color3.fromRGB(255, 100, 100)
-AuraBtn.Text = "💥 Аура: ВКЛ"
-AuraBtn.TextColor3 = Color3.fromRGB(255, 100, 100)
-AuraBtn.TextScaled = true
-AuraBtn.Font = Enum.Font.Code
-AuraBtn.Parent = ControlPanel
+-- Заголовок "Локации"
+local locTitle = Instance.new("TextLabel")
+locTitle.Size = UDim2.new(0.9, 0, 0, 22)
+locTitle.Position = UDim2.new(0.05, 0, 0, y)
+locTitle.BackgroundTransparency = 1
+locTitle.Text = "📍 ЛОКАЦИИ (выбери несколько)"
+locTitle.TextColor3 = Color3.fromRGB(150, 200, 255)
+locTitle.Font = Enum.Font.GothamBold
+locTitle.TextSize = 14
+locTitle.TextXAlignment = Enum.TextXAlignment.Left
+locTitle.Parent = content
+y = y + 28
 
--- Кнопка показа редкости
-local RarityBtn = Instance.new("TextButton")
-RarityBtn.Size = UDim2.new(0, 180, 0, 35)
-RarityBtn.Position = UDim2.new(0, 200, 0, 10)
-RarityBtn.BackgroundColor3 = Color3.fromRGB(30, 20, 40)
-RarityBtn.BorderSizePixel = 2
-RarityBtn.BorderColor3 = Color3.fromRGB(255, 215, 0)
-RarityBtn.Text = "⭐ Редкость: ВКЛ"
-RarityBtn.TextColor3 = Color3.fromRGB(255, 215, 0)
-RarityBtn.TextScaled = true
-RarityBtn.Font = Enum.Font.Code
-RarityBtn.Parent = ControlPanel
+local locFrame = Instance.new("Frame")
+locFrame.Size = UDim2.new(0.96, 0, 0, 90)
+locFrame.Position = UDim2.new(0.02, 0, 0, y)
+locFrame.BackgroundTransparency = 1
+locFrame.Parent = content
+y = y + 96
 
--- Кнопка показа яиц на карте
-local MapBtn = Instance.new("TextButton")
-MapBtn.Size = UDim2.new(0, 180, 0, 35)
-MapBtn.Position = UDim2.new(0, 200, 0, 55)
-MapBtn.BackgroundColor3 = Color3.fromRGB(20, 30, 40)
-MapBtn.BorderSizePixel = 2
-MapBtn.BorderColor3 = Color3.fromRGB(0, 200, 255)
-MapBtn.Text = "🗺️ Карта: ВКЛ"
-MapBtn.TextColor3 = Color3.fromRGB(0, 200, 255)
-MapBtn.TextScaled = true
-MapBtn.Font = Enum.Font.Code
-MapBtn.Parent = ControlPanel
+local locChecks = {}
+for i, loc in ipairs(allLocations) do
+    local cb = createCheckbox(locFrame, loc, true, function(state)
+        selectedLocations[loc] = state
+    end)
+    locChecks[loc] = cb
+end
 
--- Статистика
-local StatsFrame = Instance.new("Frame")
-StatsFrame.Size = UDim2.new(1, -20, 0, 120)
-StatsFrame.Position = UDim2.new(0, 10, 0, 370)
-StatsFrame.BackgroundColor3 = Color3.fromRGB(12, 10, 22)
-StatsFrame.BorderSizePixel = 2
-StatsFrame.BorderColor3 = Color3.fromRGB(72, 219, 251)
-StatsFrame.Parent = MainFrame
+-- Кнопки
+local stealBtn = Instance.new("TextButton")
+stealBtn.Size = UDim2.new(0.44, 0, 0, 38)
+stealBtn.Position = UDim2.new(0.04, 0, 0, y)
+stealBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+stealBtn.BackgroundTransparency = 0.3
+stealBtn.Text = "▶ AUTO STEAL"
+stealBtn.TextColor3 = Color3.new(1,1,1)
+stealBtn.Font = Enum.Font.GothamBold
+stealBtn.TextSize = 16
+stealBtn.Parent = content
 
-local StatsText = Instance.new("TextLabel")
-StatsText.Size = UDim2.new(1, -10, 1, -10)
-StatsText.Position = UDim2.new(0, 5, 0, 5)
-StatsText.BackgroundTransparency = 1
-StatsText.Text = "📊 Статистика:\nВсего питомцев: 106\nРедкостей: 10\nБиомов: 11\nШоп-яйца: 18"
-StatsText.TextColor3 = Color3.fromRGB(200, 200, 255)
-StatsText.TextXAlignment = Enum.TextXAlignment.Left
-StatsText.TextYAlignment = Enum.TextYAlignment.Top
-StatsText.TextScaled = false
-StatsText.Font = Enum.Font.Code
-StatsText.TextSize = 13
-StatsText.Parent = StatsFrame
+local auraBtn = Instance.new("TextButton")
+auraBtn.Size = UDim2.new(0.44, 0, 0, 38)
+auraBtn.Position = UDim2.new(0.52, 0, 0, y)
+auraBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 255)
+auraBtn.BackgroundTransparency = 0.3
+auraBtn.Text = "🌀 PVP AURA"
+auraBtn.TextColor3 = Color3.new(1,1,1)
+auraBtn.Font = Enum.Font.GothamBold
+auraBtn.TextSize = 16
+auraBtn.Parent = content
+y = y + 48
 
--- Индикатор статуса
-local StatusBar = Instance.new("Frame")
-StatusBar.Size = UDim2.new(1, 0, 0, 25)
-StatusBar.Position = UDim2.new(0, 0, 1, -25)
-StatusBar.BackgroundColor3 = Color3.fromRGB(10, 8, 18)
-StatusBar.BorderSizePixel = 1
-StatusBar.BorderColor3 = Color3.fromRGB(72, 219, 251)
-StatusBar.Parent = MainFrame
+-- Лучшее яйцо
+local bestLabel = Instance.new("TextLabel")
+bestLabel.Size = UDim2.new(0.9, 0, 0, 28)
+bestLabel.Position = UDim2.new(0.05, 0, 0, y)
+bestLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 50)
+bestLabel.BackgroundTransparency = 0.4
+bestLabel.Text = "🏆 BEST: N/A"
+bestLabel.TextColor3 = Color3.fromRGB(255, 215, 0)
+bestLabel.Font = Enum.Font.GothamBold
+bestLabel.TextSize = 15
+bestLabel.Parent = content
+y = y + 36
 
-local StatusText = Instance.new("TextLabel")
-StatusText.Size = UDim2.new(1, 0, 1, 0)
-StatusText.BackgroundTransparency = 1
-StatusText.Text = "✅ Готов к работе"
-StatusText.TextColor3 = Color3.fromRGB(0, 255, 100)
-StatusText.TextScaled = true
-StatusText.Font = Enum.Font.Code
-StatusText.TextSize = 12
-StatusText.Parent = StatusBar
+-- Список питомцев
+local petTitle = Instance.new("TextLabel")
+petTitle.Size = UDim2.new(0.9, 0, 0, 22)
+petTitle.Position = UDim2.new(0.05, 0, 0, y)
+petTitle.BackgroundTransparency = 1
+petTitle.Text = "📋 ДОСТУПНЫЕ ПИТОМЦЫ:"
+petTitle.TextColor3 = Color3.fromRGB(200, 200, 255)
+petTitle.Font = Enum.Font.GothamBold
+petTitle.TextSize = 14
+petTitle.TextXAlignment = Enum.TextXAlignment.Left
+petTitle.Parent = content
+y = y + 28
 
--- Обработчики кнопок
-CollectBtn.MouseButton1Click:Connect(function()
-    Config.AutoCollect = not Config.AutoCollect
-    CollectBtn.Text = Config.AutoCollect and "🔄 Автосбор: ВКЛ" or "🔄 Автосбор: ВЫКЛ"
-    CollectBtn.BorderColor3 = Config.AutoCollect and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 50, 50)
-    CollectBtn.TextColor3 = CollectBtn.BorderColor3
-    AddLog("Автосбор " .. (Config.AutoCollect and "включен" or "выключен"), 
-           Config.AutoCollect and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(255, 50, 50))
-end)
+local petListFrame = Instance.new("Frame")
+petListFrame.Size = UDim2.new(0.92, 0, 0, 160)
+petListFrame.Position = UDim2.new(0.04, 0, 0, y)
+petListFrame.BackgroundTransparency = 1
+petListFrame.Parent = content
+y = y + 168
 
-AuraBtn.MouseButton1Click:Connect(function()
-    Config.AuraActive = not Config.AuraActive
-    AuraBtn.Text = Config.AuraActive and "💥 Аура: ВКЛ" or "💥 Аура: ВЫКЛ"
-    AuraBtn.BorderColor3 = Config.AuraActive and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(100, 100, 100)
-    AuraBtn.TextColor3 = AuraBtn.BorderColor3
-    AddLog("Аура " .. (Config.AuraActive and "включена" or "выключена"),
-           Config.AuraActive and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(100, 100, 100))
-end)
-
-RarityBtn.MouseButton1Click:Connect(function()
-    Config.ShowRarity = not Config.ShowRarity
-    RarityBtn.Text = Config.ShowRarity and "⭐ Редкость: ВКЛ" or "⭐ Редкость: ВЫКЛ"
-    RarityBtn.BorderColor3 = Config.ShowRarity and Color3.fromRGB(255, 215, 0) or Color3.fromRGB(100, 100, 100)
-    RarityBtn.TextColor3 = RarityBtn.BorderColor3
-    AddLog("Отображение редкости " .. (Config.ShowRarity and "включено" or "выключено"),
-           Config.ShowRarity and Color3.fromRGB(255, 215, 0) or Color3.fromRGB(100, 100, 100))
-end)
-
-MapBtn.MouseButton1Click:Connect(function()
-    Config.ShowEggsOnMap = not Config.ShowEggsOnMap
-    MapBtn.Text = Config.ShowEggsOnMap and "🗺️ Карта: ВКЛ" or "🗺️ Карта: ВЫКЛ"
-    MapBtn.BorderColor3 = Config.ShowEggsOnMap and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(100, 100, 100)
-    MapBtn.TextColor3 = MapBtn.BorderColor3
-    AddLog("Отображение карты " .. (Config.ShowEggsOnMap and "включено" or "выключено"),
-           Config.ShowEggsOnMap and Color3.fromRGB(0, 200, 255) or Color3.fromRGB(100, 100, 100))
-end)
-
--- Сворачивание
-MinButton.MouseButton1Click:Connect(function()
-    Config.Minimized = not Config.Minimized
-    MainFrame.Size = Config.Minimized and UDim2.new(0, 60, 0, 40) or UDim2.new(0, 420, 0, 560)
-    MainFrame.Position = Config.Minimized and UDim2.new(1, -75, 0, 10) or UDim2.new(0.5, -210, 0.5, -280)
-    Shadow.Size = MainFrame.Size + UDim2.new(0, 10, 0, 10)
-    Shadow.Position = MainFrame.Position + UDim2.new(0, -5, 0, -5)
-    Shadow.Visible = not Config.Minimized
-    for _, child in pairs(MainFrame:GetChildren()) do
-        if child ~= TitleBar and child ~= StatusBar then
-            child.Visible = not Config.Minimized
-        end
-    end
-    TitleText.Text = Config.Minimized and "🎮 RC" or "🎮 Retro Console — Steal an Egg"
-    StatusBar.Visible = not Config.Minimized
-    if Config.Minimized then
-        MainFrame.BackgroundColor3 = Color3.fromRGB(25, 20, 40)
-        MainFrame.BorderSizePixel = 2
-    else
-        MainFrame.BackgroundColor3 = Color3.fromRGB(15, 12, 25)
-        MainFrame.BorderSizePixel = 3
-    end
-    AddLog(Config.Minimized and "Консоль свернута" or "Консоль развернута")
-end)
-
--- Закрытие
-CloseButton.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-    AddLog("Консоль закрыта")
-end)
-
--- Ядра: автосбор и аура
-local function GetEggs()
-    local eggs = {}
-    local eggContainer = Workspace:FindFirstChild("Eggs")
-    if eggContainer then
-        for _, child in pairs(eggContainer:GetChildren()) do
-            if child:IsA("BasePart") and child:FindFirstChild("ClickDetector") then
-                table.insert(eggs, child)
+-- === ЯДРО ЛОГИКИ ===
+local function getPetInfo(egg)
+    for loc, pets in pairs(petDB) do
+        for _, p in pairs(pets) do
+            if egg.Name:lower():find(string.lower(p.name)) or string.lower(p.name):find(string.lower(egg.Name)) then
+                return p, loc
             end
         end
     end
-    return eggs
+    return {name="Unknown", rarity="Common", value=0}, "Unknown"
 end
 
-local function GetBat()
-    local char = LocalPlayer.Character
-    if not char then return nil end
-    for _, tool in pairs(char:GetChildren()) do
-        if tool:IsA("Tool") and (string.find(tool.Name, "Bat") or string.find(tool.Name, "bat")) then
-            return tool
+local function getAllEggs()
+    local list = {}
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") and string.lower(v.Name):find("egg") then
+            local info, loc = getPetInfo(v)
+            table.insert(list, {part=v, pet=info.name, rarity=info.rarity, value=info.value, location=loc})
         end
     end
-    for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
-        if tool:IsA("Tool") and (string.find(tool.Name, "Bat") or string.find(tool.Name, "bat")) then
-            return tool
+    return list
+end
+
+local function getBestEgg()
+    local eggs = getAllEggs()
+    local best = nil
+    local bestRank = -1
+    for _, e in pairs(eggs) do
+        local rank = rarityOrder[e.rarity] or 0
+        if rank > bestRank and selectedRarities[e.rarity] and selectedLocations[e.location] then
+            bestRank = rank
+            best = e
         end
     end
-    return nil
+    return best
 end
 
-local function CollectEgg(egg)
-    local detector = egg:FindFirstChild("ClickDetector")
-    if detector then
-        fireclickdetector(detector)
-        return true
+-- === МЕТКИ НА ЯЙЦАХ ===
+local function updateLabels()
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") and string.lower(v.Name):find("egg") then
+            local existing = v:FindFirstChild("EggLabel")
+            if existing then existing:Destroy() end
+            
+            local info, loc = getPetInfo(v)
+            local color = {
+                Common=Color3.new(0.7,0.7,0.7),
+                Uncommon=Color3.new(0.3,0.9,0.3),
+                Rare=Color3.new(0.3,0.6,1),
+                Epic=Color3.new(0.7,0.3,1),
+                Legendary=Color3.new(1,0.5,0),
+                Mythic=Color3.new(1,0.2,0.4),
+                Cosmic=Color3.new(1,0.4,1),
+                Secret=Color3.new(1,0,0.3),
+                Eternal=Color3.new(1,0.9,0),
+                Divine=Color3.new(1,1,1)
+            }
+            
+            local label = Instance.new("BillboardGui")
+            label.Name = "EggLabel"
+            label.Size = UDim2.new(0, 140, 0, 32)
+            label.AlwaysOnTop = true
+            label.Parent = v
+
+            local txt = Instance.new("TextLabel")
+            txt.Size = UDim2.new(1, 0, 1, 0)
+            txt.BackgroundTransparency = 1
+            txt.Text = info.name .. " [" .. info.rarity .. "]"
+            txt.TextColor3 = color[info.rarity] or Color3.new(1,1,1)
+            txt.TextStrokeColor3 = Color3.new(0,0,0)
+            txt.TextStrokeTransparency = 0.2
+            txt.Font = Enum.Font.GothamBold
+            txt.TextSize = 13
+            txt.Parent = label
+        end
     end
-    return false
 end
 
-local function GetEggRarity(egg)
-    local name = egg.Name
-    local rarity = GetPetRarity(name)
-    if rarity == "Unknown" then
-        -- Пытаемся определить по цвету
-        if egg.BrickColor then
-            local color = egg.BrickColor.Name
-            if color:find("yellow") then rarity = "Legendary"
-            elseif color:find("violet") or color:find("purple") then rarity = "Mythic"
-            elseif color:find("cyan") or color:find("blue") then rarity = "Cosmic"
-            elseif color:find("red") then rarity = "Secret"
-            elseif color:find("orange") then rarity = "Eternal"
-            elseif color:find("gold") then rarity = "Divine"
+-- === ОБНОВЛЕНИЕ СПИСКА ПИТОМЦЕВ ===
+local function updatePetList()
+    for _, c in pairs(petListFrame:GetChildren()) do c:Destroy() end
+    local yOff = 0
+    for loc, pets in pairs(petDB) do
+        if selectedLocations[loc] then
+            for _, p in pairs(pets) do
+                if selectedRarities[p.rarity] then
+                    local lbl = Instance.new("TextLabel")
+                    lbl.Size = UDim2.new(1, 0, 0, 20)
+                    lbl.Position = UDim2.new(0, 0, 0, yOff)
+                    lbl.BackgroundTransparency = 1
+                    lbl.Text = "• " .. p.name .. " [" .. p.rarity .. "] $" .. p.value .. "/s"
+                    local colors = {Common=Color3.new(0.7,0.7,0.7), Uncommon=Color3.new(0.3,0.9,0.3), Rare=Color3.new(0.3,0.6,1), Epic=Color3.new(0.7,0.3,1), Legendary=Color3.new(1,0.5,0), Mythic=Color3.new(1,0.2,0.4), Cosmic=Color3.new(1,0.4,1), Secret=Color3.new(1,0,0.3), Eternal=Color3.new(1,0.9,0), Divine=Color3.new(1,1,1)}
+                    lbl.TextColor3 = colors[p.rarity] or Color3.new(1,1,1)
+                    lbl.Font = Enum.Font.Gotham
+                    lbl.TextSize = 11
+                    lbl.TextXAlignment = Enum.TextXAlignment.Left
+                    lbl.Parent = petListFrame
+                    yOff = yOff + 22
+                end
             end
         end
     end
-    return rarity
+    petListFrame.Size = UDim2.new(0.92, 0, 0, math.max(yOff, 20))
 end
 
--- Система визуализации яиц на карте
-local EggIndicators = {}
-local function UpdateMapIndicators()
-    if not Config.ShowEggsOnMap then
-        for _, indicator in pairs(EggIndicators) do
-            if indicator and indicator.Parent then
-                indicator:Destroy()
+-- === АУРА ДЛЯ ПВП ===
+local auraParts = {}
+local function createAura()
+    if #auraParts > 0 then return end
+    for i = 1, 14 do
+        local angle = (i / 14) * math.pi * 2
+        local part = Instance.new("Part")
+        part.Size = Vector3.new(0.5, 0.5, 1.4)
+        part.BrickColor = BrickColor.new("Bright red")
+        part.Material = Enum.Material.Neon
+        part.Anchored = true
+        part.CanCollide = false
+        part.Transparency = 0.2
+        part.Parent = workspace
+        table.insert(auraParts, part)
+    end
+end
+
+local function getNearestPlayer()
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+    local nearest, minDist = nil, 10
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local d = (plr.Character.HumanoidRootPart.Position - root.Position).Magnitude
+            if d < minDist then
+                minDist, nearest = d, plr.Character
             end
         end
-        EggIndicators = {}
+    end
+    return nearest
+end
+
+local function hitPlayer(target)
+    if not target or not target:FindFirstChild("Humanoid") then return end
+    local hum = target.Humanoid
+    hum.Health = hum.Health - 25
+    -- Визуал удара
+    local flash = Instance.new("Part")
+    flash.Size = Vector3.new(3, 3, 3)
+    flash.BrickColor = BrickColor.new("Bright red")
+    flash.Material = Enum.Material.Neon
+    flash.Anchored = true
+    flash.CanCollide = false
+    flash.Transparency = 0.6
+    flash.Position = target.HumanoidRootPart.Position
+    flash.Parent = workspace
+    game:GetService("Debris"):AddItem(flash, 0.3)
+end
+
+local function updateAura()
+    if not auraActive then
+        for _, p in pairs(auraParts) do p:Destroy() end
+        auraParts = {}
         return
     end
-    
-    local eggs = GetEggs()
-    local currentIndicators = {}
-    
-    for _, egg in pairs(eggs) do
-        local rarity = GetEggRarity(egg)
-        local color = GetRarityColor(rarity)
-        
-        if not EggIndicators[egg] then
-            local indicator = Instance.new("BillboardGui")
-            indicator.Adornee = egg
-            indicator.Size = UDim2.new(0, 40, 0, 40)
-            indicator.StudsOffset = Vector3.new(0, 3, 0)
-            indicator.Parent = egg
-            
-            local frame = Instance.new("Frame")
-            frame.Size = UDim2.new(1, 0, 1, 0)
-            frame.BackgroundColor3 = color
-            frame.BackgroundTransparency = 0.3
-            frame.BorderSizePixel = 2
-            frame.BorderColor3 = color
-            frame.Parent = indicator
-            
-            local label = Instance.new("TextLabel")
-            label.Size = UDim2.new(1, 0, 1, 0)
-            label.BackgroundTransparency = 1
-            label.Text = rarity
-            label.TextColor3 = Color3.fromRGB(255, 255, 255)
-            label.TextScaled = true
-            label.Font = Enum.Font.Code
-            label.Parent = frame
-            
-            EggIndicators[egg] = indicator
-        end
-        
-        currentIndicators[egg] = true
+    createAura()
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    local time = tick()
+    for i, p in pairs(auraParts) do
+        local angle = (i / #auraParts) * math.pi * 2 + time * 2.5
+        local radius = 4.5 + math.sin(time * 1.5 + i) * 0.5
+        p.CFrame = root.CFrame * CFrame.new(math.sin(angle) * radius, 1.5 + math.sin(time * 2 + i) * 0.5, math.cos(angle) * radius)
+        p.Orientation = Vector3.new(0, math.deg(angle), math.sin(time + i) * 30)
     end
-    
-    -- Удаляем индикаторы для исчезнувших яиц
-    for egg, indicator in pairs(EggIndicators) do
-        if not currentIndicators[egg] and indicator and indicator.Parent then
-            indicator:Destroy()
-            EggIndicators[egg] = nil
-        end
-    end
+    local target = getNearestPlayer()
+    if target then hitPlayer(target) end
 end
 
--- Основной цикл сбора и ауры
-local lastCollect = 0
-local lastAura = 0
-
-RunService.Heartbeat:Connect(function(deltaTime)
-    local now = tick()
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    
-    local rootPos = char.HumanoidRootPart.Position
-    local eggs = GetEggs()
-    
-    -- Автосбор
-    if Config.AutoCollect and now - lastCollect > 0.5 then
-        local collected = 0
-        for _, egg in pairs(eggs) do
-            if egg:IsA("BasePart") and egg:FindFirstChild("ClickDetector") then
-                local dist = (rootPos - egg.Position).Magnitude
-                if dist < Config.CollectRadius then
-                    local success = CollectEgg(egg)
-                    if success then
-                        collected = collected + 1
-                        local rarity = GetEggRarity(egg)
-                        AddLog(string.format("Собрано: %s [%s]", egg.Name, rarity), GetRarityColor(rarity))
-                    end
-                end
+-- === КНОПКИ ===
+stealBtn.MouseButton1Click:Connect(function()
+    autoSteal = not autoSteal
+    stealBtn.Text = autoSteal and "⏹ STOP" or "▶ AUTO STEAL"
+    stealBtn.BackgroundColor3 = autoSteal and Color3.fromRGB(50, 200, 50) or Color3.fromRGB(200, 50, 50)
+    spawn(function()
+        while autoSteal do
+            local best = getBestEgg()
+            if best and char and char:FindFirstChild("HumanoidRootPart") then
+                bestLabel.Text = "🏆 BEST: " .. best.pet .. " [" .. best.rarity .. "]"
+                char.HumanoidRootPart.CFrame = best.part.CFrame + Vector3.new(0, 2, 0)
+                wait(0.1)
+                local remote = replicated:FindFirstChild("StealEgg") or replicated:FindFirstChild("EggSteal")
+                if remote then remote:FireServer(best.part) end
+                updateLabels()
+            else
+                bestLabel.Text = "🏆 BEST: No egg found"
             end
+            wait(0.5)
         end
-        if collected > 0 then
-            StatusText.Text = string.format("✅ Собрано %d яиц", collected)
-            StatusText.TextColor3 = Color3.fromRGB(0, 255, 100)
-        end
-        lastCollect = now
-    end
-    
-    -- Аура
-    if Config.AuraActive and now - lastAura > Config.BatCooldown then
-        local bat = GetBat()
-        if bat then
-            local hit = false
-            for _, egg in pairs(eggs) do
-                if egg:IsA("BasePart") and egg:FindFirstChild("ClickDetector") then
-                    local dist = (rootPos - egg.Position).Magnitude
-                    if dist < Config.AuraRadius then
-                        -- Симуляция удара битой
-                        if not bat.Parent or bat.Parent ~= char then
-                            bat.Parent = char
-                        end
-                        if bat:FindFirstChild("Handle") then
-                            local handle = bat.Handle
-                            local originalCF = handle.CFrame
-                            handle.CFrame = egg.CFrame + Vector3.new(0, 2, 0)
-                            wait(0.05)
-                            handle.CFrame = originalCF
-                        end
-                        hit = true
-                        local rarity = GetEggRarity(egg)
-                        AddLog(string.format("💥 Удар по яйцу: %s [%s]", egg.Name, rarity), GetRarityColor(rarity))
-                        
-                        if Config.ShowRarity then
-                            local rarityLabel = Instance.new("BillboardGui")
-                            rarityLabel.Adornee = egg
-                            rarityLabel.Size = UDim2.new(0, 80, 0, 30)
-                            rarityLabel.StudsOffset = Vector3.new(0, 5, 0)
-                            rarityLabel.Parent = egg
-                            
-                            local label = Instance.new("TextLabel")
-                            label.Size = UDim2.new(1, 0, 1, 0)
-                            label.BackgroundColor3 = GetRarityColor(rarity)
-                            label.BackgroundTransparency = 0.2
-                            label.BorderSizePixel = 2
-                            label.BorderColor3 = GetRarityColor(rarity)
-                            label.Text = rarity .. " | " .. egg.Name
-                            label.TextColor3 = Color3.fromRGB(255, 255, 255)
-                            label.TextScaled = true
-                            label.Font = Enum.Font.Code
-                            label.Parent = rarityLabel
-                            
-                            game:GetService("Debris"):AddItem(rarityLabel, 1.5)
-                        end
-                        
-                        wait(0.1)
-                    end
-                end
-            end
-            if hit then
-                StatusText.Text = "💥 Аура активна!"
-                StatusText.TextColor3 = Color3.fromRGB(255, 100, 100)
-            end
-        else
-            StatusText.Text = "⚠️ Бита не найдена!"
-            StatusText.TextColor3 = Color3.fromRGB(255, 200, 0)
-        end
-        lastAura = now
-    end
-    
-    -- Обновление карты
-    if Config.ShowEggsOnMap then
-        UpdateMapIndicators()
-    end
+    end)
 end)
 
--- Пересоздание GUI при респавне
-LocalPlayer.CharacterAdded:Connect(function()
-    wait(1)
-    if ScreenGui and ScreenGui.Parent then
-        AddLog("Персонаж респавн, перезапуск...")
-    end
+auraBtn.MouseButton1Click:Connect(function()
+    auraActive = not auraActive
+    auraBtn.Text = auraActive and "🌀 AURA: ON" or "🌀 PVP AURA"
+    auraBtn.BackgroundColor3 = auraActive and Color3.fromRGB(50, 255, 50) or Color3.fromRGB(50, 100, 255)
+    spawn(function()
+        while auraActive do
+            updateAura()
+            wait(0.05)
+        end
+    end)
 end)
 
--- Хоткеи
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.RightControl then
-        Config.Minimized = not Config.Minimized
-        MinButton.MouseButton1Click:Fire()
-    elseif input.KeyCode == Enum.KeyCode.RightShift then
-        Config.AutoCollect = not Config.AutoCollect
-        CollectBtn.MouseButton1Click:Fire()
-    elseif input.KeyCode == Enum.KeyCode.RightAlt then
-        Config.AuraActive = not Config.AuraActive
-        AuraBtn.MouseButton1Click:Fire()
-    end
+-- === СВОРАЧИВАНИЕ ===
+iconBtn.MouseButton1Click:Connect(function()
+    main.Visible = not main.Visible
+    iconFrame.Size = main.Visible and UDim2.new(0, 40, 0, 40) or UDim2.new(0, 52, 0, 52)
 end)
 
--- Инициализация
-AddLog("=== RETRO CONSOLE v2.0 ЗАГРУЖЕНА ===")
-AddLog("Хоткеи: RCtrl - свернуть, RShift - автосбор, RAlt - аура")
-AddLog("Всего питомцев: 106 | Редкостей: 10 | Биомов: 11")
-AddLog("Готов к работе!")
+closeBtn.MouseButton1Click:Connect(function()
+    main.Visible = false
+    iconFrame.Size = UDim2.new(0, 52, 0, 52)
+end)
 
--- Сборка мусора
-game:GetService("Debris"):AddItem(ScreenGui, 86400) -- На всякий случай
+-- Обновление при изменении фильтров
+for _, cb in pairs(rarityChecks) do
+    cb:GetChildren()[1].MouseButton1Click:Connect(updatePetList)
+end
+for _, cb in pairs(locChecks) do
+    cb:GetChildren()[1].MouseButton1Click:Connect(updatePetList)
+end
+
+updatePetList()
+print("CHLEN-2.0 | MULTI-SELECT ULTIMATE LOADED")
